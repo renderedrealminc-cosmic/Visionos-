@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VisionOS by Cosmic</title>
+<style>
+  :root {
+    --glass-bg: rgba(255, 255, 255, 0.08);
+    --glass-border: rgba(255, 255, 255, 0.18);
+    --accent: #00e5ff;
+    --focus-glow: 0 0 25px rgba(0, 229, 255, 0.75);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  body {
+    width: 100vw; height: 100vh; overflow: hidden;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    color: #fff;
+    background: radial-gradient(circle at 20% 20%, #1a103c, #070913 65%, #020308);
+    display: flex; flex-direction: column; justify-content: space-between;
+    transition: background 0.5s ease;
+  }
+  body.theme-fire {
+    background: linear-gradient(160deg, #2b0f1c 0%, #090a10 55%, #000000 100%);
+    --accent: #ff6d00;
+    --focus-glow: 0 0 25px rgba(255, 109, 0, 0.8);
+  }
+  body.theme-desktop {
+    background: radial-gradient(circle at 80% 10%, #063847, #050b14 70%);
+    --accent: #00ff9d;
+    --focus-glow: 0 0 25px rgba(0, 255, 157, 0.75);
+  }
+
+  /* Top Glass Status Bar */
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 18px 40px; margin: 16px 36px 0;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 22px;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; font-size: 22px; font-weight: 700; letter-spacing: 1px; }
+  .status-dot { width: 11px; height: 11px; border-radius: 50%; background: #ff4757; box-shadow: 0 0 10px #ff4757; }
+  .status-dot.online { background: #2ed573; box-shadow: 0 0 12px #2ed573; }
+  .top-right { display: flex; align-items: center; gap: 20px; font-size: 18px; }
+  .pill-btn {
+    padding: 8px 16px; border-radius: 14px;
+    background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border);
+    color: #fff; font-size: 14px; cursor: pointer; transition: 0.2s;
+  }
+
+  /* Main Workspace */
+  .workspace {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+    padding: 10px 42px; overflow: hidden; gap: 22px;
+  }
+
+  /* Fire TV Hero Banner */
+  .hero-banner {
+    display: none; padding: 26px 34px; border-radius: 26px;
+    background: linear-gradient(90deg, rgba(255,109,0,0.28), rgba(0,0,0,0.4));
+    border: 1px solid var(--glass-border); backdrop-filter: blur(16px);
+  }
+  body.theme-fire .hero-banner { display: block; }
+  .hero-banner h1 { font-size: 30px; margin-bottom: 6px; }
+  .hero-banner p { color: rgba(255,255,255,0.75); font-size: 15px; }
+
+  /* Widgets Row (.xcv) */
+  .widget-strip {
+    display: flex; gap: 20px; align-items: stretch;
+  }
+  .widget-card {
+    flex: 1; padding: 18px 24px; border-radius: 22px;
+    background: var(--glass-bg); backdrop-filter: blur(22px);
+    border: 1px solid var(--glass-border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .widget-title { font-size: 13px; text-transform: uppercase; opacity: 0.65; letter-spacing: 1px; }
+  .widget-val { font-size: 24px; font-weight: 700; margin-top: 4px; color: var(--accent); }
+
+  /* Apps Grid */
+  .section-label { font-size: 15px; opacity: 0.7; letter-spacing: 1px; text-transform: uppercase; margin-bottom: -8px; }
+  .app-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+    gap: 22px; padding: 8px 4px;
+  }
+  body.theme-fire .app-grid {
+    display: flex; overflow-x: auto; gap: 20px;
+  }
+  .app-card {
+    height: 135px; border-radius: 26px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    gap: 10px; cursor: pointer; transition: all 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+    position: relative; padding: 14px; text-align: center;
+  }
+  .app-icon { font-size: 40px; }
+  .app-name { font-size: 15px; font-weight: 600; }
+  .app-badge {
+    position: absolute; top: 10px; right: 12px;
+    font-size: 10px; padding: 2px 7px; border-radius: 8px;
+    background: rgba(0,0,0,0.45); border: 1px solid var(--glass-border); color: var(--accent);
+  }
+
+  /* Focus State for TV Remote D-Pad */
+  .focusable:focus, .focusable.tv-focus {
+    outline: none;
+    transform: scale(1.08) translateY(-4px);
+    border-color: var(--accent);
+    box-shadow: var(--focus-glow);
+    background: rgba(255, 255, 255, 0.16);
+    z-index: 10;
+  }
+
+  /* Bottom Glass Dock */
+  .dock-wrap { display: flex; justify-content: center; margin-bottom: 20px; }
+  .dock {
+    display: flex; gap: 18px; padding: 12px 26px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+    border: 1px solid var(--glass-border);
+    border-radius: 28px;
+  }
+
+  /* Fullscreen Runner Modal for .webx & .vab Apps */
+  #runnerModal {
+    position: fixed; inset: 0; background: #000; z-index: 999;
+    display: none; flex-direction: column;
+  }
+  #runnerFrame { flex: 1; width: 100%; border: none; background: #000; }
+</style>
+</head>
+<body class="theme-apple">
+
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="brand">
+      <div id="syncDot" class="status-dot"></div>
+      <span>VisionOS <small style="font-size:12px;opacity:0.6;">v1.0 Cosmic</small></span>
+    </div>
+    <div class="top-right">
+      <button class="pill-btn focusable" onclick="cycleTheme()">🎨 Theme: <span id="themeName">Apple Glass</span></button>
+      <button class="pill-btn focusable" onclick="syncFirebaseNow()">🔄 Cloud Sync</button>
+      <span id="clock">12:00 PM</span>
+    </div>
+  </div>
+
+  <!-- Main Workspace -->
+  <div class="workspace">
+    <div class="hero-banner">
+      <h1>VisionOS Cinema Mode</h1>
+      <p>Connected to Cosmic Cloud • Supports .webx, .vab (WASM/C++) & .xcv Widgets</p>
+    </div>
+
+    <!-- Widgets (.xcv) -->
+    <div class="widget-strip" id="widgetContainer">
+      <div class="widget-card">
+        <div>
+          <div class="widget-title">System Engine</div>
+          <div class="widget-val">WASM + WebGL Ready</div>
+        </div>
+        <div style="font-size:32px;">⚡</div>
+      </div>
+      <div class="widget-card">
+        <div>
+          <div class="widget-title">Cloud Database</div>
+          <div class="widget-val" id="cloudState">Offline Vault Ready</div>
+        </div>
+        <div style="font-size:32px;">☁️</div>
+      </div>
+    </div>
+
+    <div class="section-label">Installed & Cloud Apps</div>
+    <div class="app-grid" id="appGrid"></div>
+  </div>
+
+  <!-- Bottom Glass Dock -->
+  <div class="dock-wrap">
+    <div class="dock">
+      <button class="pill-btn focusable" onclick="loadNativeTvApps()">📺 TV Installed Apps</button>
+      <button class="pill-btn focusable" onclick="openAndroidSettings()">⚙️ Android Settings</button>
+      <button class="pill-btn focusable" onclick="resetOta()">🛡️ Factory Reset OS</button>
+    </div>
+  </div>
+
+  <!-- Fullscreen App Runner -->
+  <div id="runnerModal">
+    <iframe id="runnerFrame" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+  </div>
+
+<script>
+  const FIREBASE_URL = "https://visionos-91949-default-rtdb.asia-southeast1.firebasedatabase.app";
+  const themes = [
+    { cls: "theme-apple", name: "Apple Glass" },
+    { cls: "theme-fire", name: "Fire Cinema" },
+    { cls: "theme-desktop", name: "Cosmic Productivity" }
+  ];
+  let currentTheme = parseInt(localStorage.getItem("vision_theme") || "0");
+
+  // Default Built-in Apps
+  const defaultApps = [
+    { id: "yt", name: "YouTube TV", icon: "▶️", format: "NATIVE", pkg: "com.google.android.youtube.tv" },
+    { id: "st", name: "SmartTube", icon: "📺", format: "NATIVE", pkg: "com.liskovsoft.smarttubetv.beta" },
+    {
+      id: "demo_webx", name: "Neon Cyber Pad", icon: "🎮", format: ".webx",
+      code: `<body style="background:#05070f;color:#0ff;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;"><h1>⚡ .WEBX Engine Active!</h1><p>Press Remote BACK button to return to VisionOS</p></body>`
+    }
+  ];
+
+  function applyTheme() {
+    document.body.className = themes[currentTheme].cls;
+    document.getElementById("themeName").innerText = themes[currentTheme].name;
+    localStorage.setItem("vision_theme", currentTheme);
+  }
+  function cycleTheme() {
+    currentTheme = (currentTheme + 1) % themes.length;
+    applyTheme();
+  }
+
+  // Clock
+  setInterval(() => {
+    const d = new Date();
+    document.getElementById("clock").innerText = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }, 1000);
+
+  // Render Apps from Offline Vault + Default
+  function renderApps() {
+    const grid = document.getElementById("appGrid");
+    grid.innerHTML = "";
+    const cloudApps = JSON.parse(localStorage.getItem("vision_apps_vault") || "{}");
+    const allApps = [...defaultApps, ...Object.values(cloudApps)];
+
+    allApps.forEach((app) => {
+      const card = document.createElement("div");
+      card.className = "app-card focusable";
+      card.tabIndex = 0;
+      card.innerHTML = `
+        <span class="app-badge">${app.format || ".webx"}</span>
+        <div class="app-icon">${app.icon || "🚀"}</div>
+        <div class="app-name">${app.name}</div>
+      `;
+      card.onclick = () => launchApp(app);
+      grid.appendChild(card);
+    });
+    refreshFocusables();
+  }
+
+  function launchApp(app) {
+    if (app.format === "NATIVE" && window.VisionNative) {
+      window.VisionNative.launchNativeApp(app.pkg);
+      return;
+    }
+    if (app.code) {
+      const modal = document.getElementById("runnerModal");
+      const frame = document.getElementById("runnerFrame");
+      modal.style.display = "flex";
+      frame.srcdoc = app.code;
+      frame.focus();
+    }
+  }
+
+  // Handle TV Remote Back Button inside VisionOS
+  window.onVisionBack = function() {
+    const modal = document.getElementById("runnerModal");
+    if (modal.style.display === "flex") {
+      document.getElementById("runnerFrame").srcdoc = "";
+      modal.style.display = "none";
+      refreshFocusables();
+    }
+  };
+
+  // Load Native Installed TV Apps
+  function loadNativeTvApps() {
+    if (!window.VisionNative) {
+      alert("Running in Browser Preview. Install APK on TV to scan native apps!");
+      return;
+    }
+    try {
+      const list = JSON.parse(window.VisionNative.getInstalledTvApps());
+      const vault = JSON.parse(localStorage.getItem("vision_apps_vault") || "{}");
+      list.forEach(item => {
+        vault["native_" + item.package] = {
+          id: item.package, name: item.name, icon: "📦", format: "NATIVE", pkg: item.package
+        };
+      });
+      localStorage.setItem("vision_apps_vault", JSON.stringify(vault));
+      renderApps();
+      window.VisionNative.showToast("Loaded " + list.length + " TV Apps!");
+    } catch (e) {}
+  }
+
+  function openAndroidSettings() {
+    if (window.VisionNative) window.VisionNative.openSystemSettings();
+  }
+  function resetOta() {
+    if (window.VisionNative) window.VisionNative.resetOtaSystem();
+  }
+
+  // Firebase OTA & App Sync (.webx, .vab, .xcv)
+  async function syncFirebaseNow() {
+    try {
+      const res = await fetch(FIREBASE_URL + "/visionos.json");
+      if (!res.ok) throw new Error("Sync error");
+      const data = await res.json();
+      document.getElementById("syncDot").classList.add("online");
+      document.getElementById("cloudState").innerText = "Connected & Synced";
+
+      if (data) {
+        // 1. Check Apps (.webx / .vab)
+        if (data.apps) {
+          localStorage.setItem("vision_apps_vault", JSON.stringify(data.apps));
+          renderApps();
+        }
+        // 2. Check Widgets (.xcv)
+        if (data.widgets) {
+          const wStrip = document.getElementById("widgetContainer");
+          Object.values(data.widgets).forEach(w => {
+            if (!document.getElementById("w_" + w.id)) {
+              const div = document.createElement("div");
+              div.id = "w_" + w.id;
+              div.className = "widget-card";
+              div.innerHTML = `<div><div class="widget-title">${w.title} (.xcv)</div><div class="widget-val">${w.value}</div></div><div style="font-size:30px;">${w.icon || "✨"}</div>`;
+              wStrip.appendChild(div);
+            }
+          });
+        }
+        // 3. Check Full OS OTA Update
+        if (data.ota_core && data.ota_core.version && data.ota_core.html) {
+          const currentVer = localStorage.getItem("vision_ota_ver") || "1.0.0";
+          if (data.ota_core.version !== currentVer) {
+            localStorage.setItem("vision_ota_ver", data.ota_core.version);
+            if (window.VisionNative) {
+              window.VisionNative.saveOtaSystem(data.ota_core.html);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      document.getElementById("syncDot").classList.remove("online");
+      document.getElementById("cloudState").innerText = "Offline Mode Active";
+    }
+  }
+
+  // TV Remote D-Pad Arrow Navigation
+  let focusIndex = 0;
+  let focusItems = [];
+  function refreshFocusables() {
+    focusItems = Array.from(document.querySelectorAll(".focusable"));
+    if (focusItems.length > 0) {
+      focusIndex = Math.min(focusIndex, focusItems.length - 1);
+      focusItems[focusIndex].focus();
+    }
+  }
+  window.addEventListener("keydown", (e) => {
+    if (document.getElementById("runnerModal").style.display === "flex") return;
+    focusItems = Array.from(document.querySelectorAll(".focusable"));
+    if (!focusItems.length) return;
+
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      focusIndex = (focusIndex + 1) % focusItems.length;
+      focusItems[focusIndex].focus();
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      focusIndex = (focusIndex - 1 + focusItems.length) % focusItems.length;
+      focusItems[focusIndex].focus();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      focusItems[focusIndex].click();
+    }
+  });
+
+  applyTheme();
+  renderApps();
+  syncFirebaseNow();
+  setInterval(syncFirebaseNow, 15000);
+</script>
+</body>
+      </html>
+  
